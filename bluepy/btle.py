@@ -291,7 +291,14 @@ class BluepyHelper:
             self._poller.unregister(self._helper.stdout)
             self._helper.stdin.write("quit\n")
             self._helper.stdin.flush()
-            self._helper.wait()
+            # Hotfix for the dead lock issue. see below link:
+            # https://github.com/IanHarvey/bluepy/issues/344
+            try:
+                self._helper.communicate(timeout=10)
+            except TimeoutExpired:
+                self._helper.kill()
+                self._helper.communicate()
+
             self._helper = None
         if self._stderr is not None:
             self._stderr.close()
@@ -628,6 +635,7 @@ class Peripheral(BluepyHelper):
 
     def __del__(self):
         self.disconnect()
+
 
 class ScanEntry:
     addrTypes = { 1 : ADDR_TYPE_PUBLIC,
